@@ -6,4 +6,5 @@ cmake-build-*/
 CMakeFiles/
 _build/
 out/
+QtForgeConfig.cmake.in
 
