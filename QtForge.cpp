@@ -82,10 +82,14 @@ void QtForge::onObjectCreated(QObject *obj, const QUrl &objUrl)
     QTimer::singleShot(0, this, [this, obj]() {
         // Применяем все зарегистрированные привязки
         for (const auto &binding : m_bindings) {
+            // LCOV_EXCL_START
+            // Defensive guard: registerBinding() rejects nullptr, so this branch
+            // cannot be reached through the public API.
             if (!binding.value) [[unlikely]] {
                 qWarning() << "QtForge: Binding value is null for" << binding.objectId;
                 continue;
             }
+            // LCOV_EXCL_STOP
             
             // Ищем объект по objectName (не по id!)
             auto *targetObject = obj->findChild<QObject*>(binding.objectId);
@@ -110,12 +114,15 @@ void QtForge::onObjectCreated(QObject *obj, const QUrl &objUrl)
             }
         }
         
+        // LCOV_EXCL_START
+        // Internal map has no public mutator yet; loop remains for forward compatibility.
         // Автоматически применяем локальные контексты к объектам
         for (auto it = m_objectContextMapping.constBegin(); it != m_objectContextMapping.constEnd(); ++it) {
             const QString &objectName = it.key();
             const QString &contextId = it.value();
             (void)applyContextToObject(objectName, contextId);
         }
+        // LCOV_EXCL_STOP
     });
 }
 
@@ -136,10 +143,13 @@ bool QtForge::setContextProperty(const QString &name, QObject *value, const QStr
     // Если contextId пустая, используем root context
     if (contextId.isEmpty()) {
         targetContext = m_engine->rootContext();
+        // LCOV_EXCL_START
+        // QQmlApplicationEngine always provides rootContext() after construction.
         if (!targetContext) [[unlikely]] {
             qWarning() << "QtForge: Cannot set context property - root context is null";
             return false;
         }
+        // LCOV_EXCL_STOP
     } else {
         // Ищем локальный контекст по ID
         auto it = m_localContexts.find(contextId);
@@ -187,14 +197,17 @@ QQmlPropertyMap* QtForge::registerPropertyMap(const QString &name, QObject *pare
     auto *propertyMap = new QQmlPropertyMap(parent ? parent : this);
     
     auto *rootContext = m_engine->rootContext();
-    if (rootContext) [[likely]] {
-        rootContext->setContextProperty(name, propertyMap);
-        qDebug() << "QtForge: Registered property map - name:" << name;
-        return propertyMap;
+    // LCOV_EXCL_START
+    // QQmlApplicationEngine always provides rootContext() after construction.
+    if (!rootContext) [[unlikely]] {
+        delete propertyMap;
+        return nullptr;
     }
-    
-    delete propertyMap;
-    return nullptr;
+    // LCOV_EXCL_STOP
+
+    rootContext->setContextProperty(name, propertyMap);
+    qDebug() << "QtForge: Registered property map - name:" << name;
+    return propertyMap;
 }
 
 QString QtForge::createLocalContext(QObject *parent) noexcept
@@ -205,10 +218,13 @@ QString QtForge::createLocalContext(QObject *parent) noexcept
     }
     
     auto *rootContext = m_engine->rootContext();
+    // LCOV_EXCL_START
+    // QQmlApplicationEngine always provides rootContext() after construction.
     if (!rootContext) [[unlikely]] {
         qWarning() << "QtForge: Cannot create local context - root context is null";
         return QString();
     }
+    // LCOV_EXCL_STOP
     
     // Создаем локальный контекст
     auto *context = new QQmlContext(rootContext, parent ? parent : this);
@@ -376,11 +392,13 @@ QObject* QtForge::createAndAddComponent(const QString &componentId,
     }
     
     // Создаем объект из компонента с правильным контекстом и родителем
-    QObject *object = component->create(context, parentContainer);
+    QObject *object = component->create(context);
     if (!object) [[unlikely]] {
         qWarning() << "QtForge: Failed to create object from component";
         return nullptr;
     }
+
+    object->setParent(parentContainer);
     
     // Устанавливаем свойство
     const auto propertyNameBytes = propertyName.toUtf8();
@@ -399,5 +417,3 @@ QObject* QtForge::createAndAddComponent(const QString &componentId,
         return nullptr;
     }
 }
-
-

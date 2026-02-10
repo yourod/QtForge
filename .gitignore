@@ -1,10 +1,14 @@
 .idea/
+.github/
 
 # CMake
 build/
+build-local-default/
+build-local-no-tests/
+build-no-tests/
+build-tests-on/
 cmake-build-*/
 CMakeFiles/
 _build/
 out/
 QtForgeConfig.cmake.in
-

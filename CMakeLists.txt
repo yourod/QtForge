@@ -4,6 +4,24 @@ project(QtForge VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
 
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    set(QTFORGE_BUILD_TESTS_DEFAULT ON)
+else()
+    set(QTFORGE_BUILD_TESTS_DEFAULT OFF)
+endif()
+
+option(YOURLIB_BUILD_TESTS "Build QtForge unit tests" ${QTFORGE_BUILD_TESTS_DEFAULT})
+option(YOURLIB_ENABLE_COVERAGE "Enable coverage instrumentation for GCC/Clang" OFF)
+
+if(YOURLIB_ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(-O0 -g --coverage)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "YOURLIB_ENABLE_COVERAGE is ON, but compiler is not GCC/Clang. Coverage flags are skipped.")
+    endif()
+endif()
+
 # Automatically search for Qt6 in common installation locations
 # This makes CMake fully self-contained and independent of folder structure
 if(NOT Qt6_DIR AND NOT DEFINED ENV{Qt6_DIR})
@@ -93,6 +111,11 @@ set_target_properties(QtForgeLib PROPERTIES
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
+if(YOURLIB_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 # Install targets
 install(TARGETS QtForgeLib
     EXPORT QtForgeTargets
@@ -132,4 +155,3 @@ install(EXPORT QtForgeTargets
     NAMESPACE QtForge::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QtForge
 )
-
