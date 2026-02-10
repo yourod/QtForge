@@ -333,4 +333,71 @@ bool QtForge::registerComponentProperty(const QString &componentId, const QStrin
     }
 }
 
+QObject* QtForge::createAndAddComponent(const QString &componentId, 
+                                        const QString &propertyName, 
+                                        QObject *value, 
+                                        QObject *parentContainer) noexcept
+{
+    if (!m_engine) [[unlikely]] {
+        qWarning() << "QtForge: Cannot create and add component - engine not initialized";
+        return nullptr;
+    }
+    
+    if (!value) [[unlikely]] {
+        qWarning() << "QtForge: Cannot create and add component with null value";
+        return nullptr;
+    }
+    
+    if (!parentContainer) [[unlikely]] {
+        qWarning() << "QtForge: Cannot create and add component - parent container is null";
+        return nullptr;
+    }
+    
+    // Находим компонент по ID
+    auto it = m_components.find(componentId);
+    if (it == m_components.end()) [[unlikely]] {
+        qWarning() << "QtForge: Cannot create and add component - component ID not found:" << componentId;
+        return nullptr;
+    }
+    
+    QQmlComponent *component = it.value();
+    
+    // Проверяем статус компонента
+    if (component->status() != QQmlComponent::Ready) [[unlikely]] {
+        qWarning() << "QtForge: Cannot create and add component - component is not ready, status:" << component->status();
+        return nullptr;
+    }
+    
+    // Получаем QML контекст родительского контейнера
+    QQmlContext *context = qmlContext(parentContainer);
+    if (!context) [[unlikely]] {
+        qWarning() << "QtForge: Cannot create and add component - cannot get QML context for parent container";
+        return nullptr;
+    }
+    
+    // Создаем объект из компонента с правильным контекстом и родителем
+    QObject *object = component->create(context, parentContainer);
+    if (!object) [[unlikely]] {
+        qWarning() << "QtForge: Failed to create object from component";
+        return nullptr;
+    }
+    
+    // Устанавливаем свойство
+    const auto propertyNameBytes = propertyName.toUtf8();
+    const bool success = object->setProperty(propertyNameBytes.constData(), QVariant::fromValue(value));
+    
+    if (success) [[likely]] {
+        // Сохраняем созданный объект для отслеживания (опционально)
+        QString objectId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        m_createdObjects[objectId] = object;
+        qDebug() << "QtForge: Created and added component - componentId:" << componentId 
+                 << "propertyName:" << propertyName << "objectId:" << objectId;
+        return object;
+    } else {
+        qWarning() << "QtForge: Failed to set property" << propertyName << "on component object";
+        delete object;
+        return nullptr;
+    }
+}
+
 

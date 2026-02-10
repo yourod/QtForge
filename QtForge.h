@@ -29,6 +29,13 @@ public:
     [[nodiscard]] QQmlPropertyMap* registerPropertyMap(const QString &name, QObject *parent = nullptr) noexcept;
     [[nodiscard]] bool registerComponentProperty(const QString &componentId, const QString &propertyName, QObject *value) noexcept;
     
+    // Создает компонент и автоматически добавляет его в указанный QML контейнер
+    // Рекомендуемый способ работы с компонентами - компонент будет виден в интерфейсе
+    [[nodiscard]] QObject* createAndAddComponent(const QString &componentId, 
+                                                   const QString &propertyName, 
+                                                   QObject *value, 
+                                                   QObject *parentContainer) noexcept;
+    
 
 private slots:
     void onObjectCreated(QObject *obj, const QUrl &objUrl);
@@ -44,7 +51,6 @@ private:
     QQmlApplicationEngine *m_engine;
     QUrl m_mainUrl;
     
-    // Внутренние хранилища для инкапсуляции QML типов
     QMap<QString, QQmlContext*> m_localContexts;      // ID -> локальный контекст
     QMap<QString, QQmlComponent*> m_components;       // ID -> компонент
     QMap<QString, QObject*> m_createdObjects;        // ID -> созданный объект
